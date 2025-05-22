@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NLLB Translation Service Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .loading {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+        .info {
+            background-color: #e2e3e5;
+            border-color: #d6d8db;
+            color: #383d41;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .json-display {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 NLLB Translation Service Test</h1>
+        
+        <div class="info">
+            <strong>Service URL:</strong> https://nllb-translator-service.onrender.com<br>
+            <strong>Model:</strong> facebook/nllb-200-distilled-600M<br>
+            <strong>Translation:</strong> English → Telugu
+        </div>
+
+        <div class="input-group">
+            <label for="testText">Enter English text to translate:</label>
+            <textarea id="testText" placeholder="Type your English text here...">Hello, how are you today?</textarea>
+        </div>
+
+        <button onclick="testTranslation()" id="testBtn">🔄 Test Translation</button>
+        <button onclick="testHealth()" id="healthBtn">❤️ Check Health</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const SERVICE_URL = 'https://nllb-translator-service.onrender.com';
+
+        async function testTranslation() {
+            const testText = document.getElementById('testText').value.trim();
+            const resultDiv = document.getElementById('result');
+            const testBtn = document.getElementById('testBtn');
+
+            if (!testText) {
+                showResult('Please enter some text to translate.', 'error');
+                return;
+            }
+
+            // Show loading state
+            testBtn.disabled = true;
+            testBtn.textContent = '⏳ Translating...';
+            showResult('Sending translation request... This may take a moment if the service is starting up.', 'loading');
+
+            try {
+                const response = await fetch(`${SERVICE_URL}/process`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ sentence: testText })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult(`
+                        <strong>✅ Translation Successful!</strong><br><br>
+                        <strong>Original:</strong> ${data.original_sentence}<br>
+                        <strong>Translation:</strong> ${data.processed_sentence}<br>
+                        <strong>Model:</strong> ${data.model}<br>
+                        <strong>Language Pair:</strong> ${data.language_pair}
+                        <div class="json-display">${JSON.stringify(data, null, 2)}</div>
+                    `, 'success');
+                } else {
+                    showResult(`
+                        <strong>❌ Translation Failed</strong><br><br>
+                        <strong>Error:</strong> ${data.error || 'Unknown error'}<br>
+                        <strong>Status:</strong> ${response.status}
+                        <div class="json-display">${JSON.stringify(data, null, 2)}</div>
+                    `, 'error');
+                }
+            } catch (error) {
+                showResult(`
+                    <strong>❌ Network Error</strong><br><br>
+                    <strong>Error:</strong> ${error.message}<br>
+                    This could be due to:<br>
+                    • Service is starting up (wait 30-60 seconds)<br>
+                    • Network connectivity issues<br>
+                    • CORS restrictions
+                `, 'error');
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = '🔄 Test Translation';
+            }
+        }
+
+        async function testHealth() {
+            const resultDiv = document.getElementById('result');
+            const healthBtn = document.getElementById('healthBtn');
+
+            healthBtn.disabled = true;
+            healthBtn.textContent = '⏳ Checking...';
+            showResult('Checking service health...', 'loading');
+
+            try {
+                const response = await fetch(`${SERVICE_URL}/health`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    showResult(`
+                        <strong>✅ Service is Healthy!</strong><br><br>
+                        <strong>Status:</strong> ${data.status}<br>
+                        <strong>Service:</strong> ${data.service}<br>
+                        <strong>Model:</strong> ${data.model}<br>
+                        <strong>Token Configured:</strong> ${data.token_configured ? 'Yes' : 'No'}<br>
+                        <strong>Timestamp:</strong> ${new Date(data.timestamp * 1000).toLocaleString()}
+                        <div class="json-display">${JSON.stringify(data, null, 2)}</div>
+                    `, 'success');
+                } else {
+                    showResult(`
+                        <strong>❌ Health Check Failed</strong><br><br>
+                        <strong>Status:</strong> ${response.status}
+                        <div class="json-display">${JSON.stringify(data, null, 2)}</div>
+                    `, 'error');
+                }
+            } catch (error) {
+                showResult(`
+                    <strong>❌ Health Check Error</strong><br><br>
+                    <strong>Error:</strong> ${error.message}
+                `, 'error');
+            } finally {
+                healthBtn.disabled = false;
+                healthBtn.textContent = '❤️ Check Health';
+            }
+        }
+
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = message;
+            resultDiv.className = `result ${type}`;
+        }
+
+        // Test health on page load
+        window.addEventListener('load', testHealth);
+    </script>
+</body>
+</html>
